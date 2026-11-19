@@ -1,5 +1,5 @@
 import express from "express";
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 import "dotenv/config";
 import cors from "cors";
 
@@ -38,13 +38,43 @@ app.get("/users", async (req, res) => {
 
 // Jobs Related APIs
 app.get("/jobs", async (req, res) => {
-    const jobs = await jobsCollection.find({}).toArray();
+    const query = {};
+    console.log("Query:", req.query);
+    if (req.query) {
+        if (req.query.jobType) {
+            query.jobType = req.query.jobType;
+        }
+        if (req.query.isRemote) {
+            query.isRemote = req.query.isRemote === "true";
+        }
+        if (req.query.jobCategory) {
+            query.jobCategory = req.query.jobCategory;
+        }
+        if (req.query.search) {
+            query.$or = [
+                { jobTitle: { $regex: req.query.search, $options: "i" } },
+                {
+                    responsibilities: {
+                        $regex: req.query.search,
+                        $options: "i",
+                    },
+                },
+            ];
+        }
+    }
+    const jobs = await jobsCollection.find(query).toArray();
     res.json(jobs);
 });
 
 app.post("/jobs", async (req, res) => {
     const job = req.body;
     const result = await jobsCollection.insertOne(job);
+    res.json(result);
+});
+
+app.delete("/jobs/:id", async (req, res) => {
+    const id = req.params.id;
+    const result = await jobsCollection.deleteOne({ _id: new ObjectId(id) });
     res.json(result);
 });
 
